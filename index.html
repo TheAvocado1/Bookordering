@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booklet Processor - PDF Page Reordering Tool</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Booklet Processor</h1>
+            <p>Reorder PDF pages for booklet printing with page numbers</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <h2>1. Upload PDF</h2>
+                <div class="file-upload">
+                    <input type="file" id="pdfFile" accept=".pdf" required>
+                    <label for="pdfFile" class="file-label">
+                        <span id="file-text">Choose PDF File</span>
+                    </label>
+                </div>
+                <div id="file-info" class="file-info hidden"></div>
+            </div>
+
+            <div class="config-section hidden" id="configSection">
+                <h2>2. Configuration</h2>
+                
+                <div class="config-group">
+                    <label for="pagesPerSheet">Pages per Sheet:</label>
+                    <select id="pagesPerSheet">
+                        <option value="2">2 pages per sheet (standard duplex)</option>
+                        <option value="4" selected>4 pages per sheet (cut horizontally)</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label for="signatureSize">Signature Size:</label>
+                    <select id="signatureSize">
+                        <option value="4">4 pages</option>
+                        <option value="8">8 pages</option>
+                        <option value="16" selected>16 pages</option>
+                        <option value="32">32 pages</option>
+                    </select>
+                </div>
+
+                <button id="processBtn" class="process-btn">Process PDF</button>
+            </div>
+
+            <div class="progress-section hidden" id="progressSection">
+                <h2>3. Processing</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="progressText">Processing...</div>
+            </div>
+
+            <div class="result-section hidden" id="resultSection">
+                <h2>4. Download Result</h2>
+                <p>Your booklet has been processed successfully!</p>
+                <button id="downloadBtn" class="download-btn">Download Processed PDF</button>
+                <div class="result-info">
+                    <p><strong>Original pages:</strong> <span id="originalPages"></span></p>
+                    <p><strong>Final pages:</strong> <span id="finalPages"></span></p>
+                    <p><strong>Blank pages added:</strong> <span id="blankPages"></span></p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="instructions">
+                <h3>How to use:</h3>
+                <ol>
+                    <li>Upload your PDF file</li>
+                    <li>Choose your printing configuration</li>
+                    <li>Select signature size</li>
+                    <li>Process and download the reordered PDF</li>
+                </ol>
+                
+                <h3>Printing Instructions:</h3>
+                <ul>
+                    <li><strong>4 pages per sheet:</strong> Print double-sided, long edge binding, then cut each sheet horizontally</li>
+                    <li><strong>2 pages per sheet:</strong> Print double-sided, long edge binding, stack and fold</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+
+    <script src="booklet-processor.js"></script>
+</body>
+</html>
