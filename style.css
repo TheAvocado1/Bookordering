@@ -759,10 +759,14 @@ footer::before {
 }
 
 .type-buttons {
-    display: flex;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
     justify-content: center;
     margin-top: 20px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .type-btn {
@@ -847,6 +851,140 @@ footer::before {
     color: #ccc;
     font-family: 'Courier Prime', monospace;
     font-size: 0.9em;
+}
+
+/* PDF List for Merger */
+.pdf-list {
+    margin-top: 20px;
+    padding: 20px;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.4),
+        0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    margin: 5px 0;
+    background: #333;
+    border: 1px solid #555;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.pdf-item:hover {
+    background: #3a3a3a;
+    transform: translateX(2px);
+}
+
+.pdf-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.pdf-info {
+    flex: 1;
+    color: #ccc;
+    font-family: 'Courier Prime', monospace;
+}
+
+.pdf-remove {
+    background: #660000;
+    color: #fff;
+    border: 1px solid #990000;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pdf-remove:hover {
+    background: #990000;
+}
+
+/* EPUB Metadata Form */
+.epub-metadata {
+    margin-top: 20px;
+    padding: 25px;
+    background: 
+        radial-gradient(circle at 25% 30%, rgba(139, 105, 75, 0.08) 1px, transparent 2px),
+        radial-gradient(circle at 75% 70%, rgba(160, 120, 85, 0.06) 1px, transparent 1px),
+        linear-gradient(180deg, #382f28 0%, #312822 100%);
+    background-size: 8px 8px, 6px 6px, 100% 100%;
+    border: 2px solid #8b694b;
+    box-shadow: 
+        6px 6px 0px #1a1611,
+        inset 0 0 20px rgba(139, 105, 75, 0.08);
+}
+
+.epub-metadata h3 {
+    color: #ddd;
+    margin-bottom: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: 'Special Elite', 'Courier Prime', monospace;
+    border-bottom: 1px solid #999;
+    padding-bottom: 8px;
+}
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.metadata-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.metadata-field label {
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #ddd;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9em;
+    font-family: 'Special Elite', 'Courier Prime', monospace;
+}
+
+.metadata-field input,
+.metadata-field select,
+.metadata-field textarea {
+    padding: 12px;
+    border: 2px solid #666;
+    background: 
+        linear-gradient(to bottom, #3a3a3a, #2e2e2e);
+    color: #e8e8e8;
+    font-family: 'Courier Prime', monospace;
+    font-size: 1em;
+    transition: all 0.2s ease;
+    box-shadow: 
+        2px 2px 0px #111,
+        inset 0 1px 0px rgba(255, 255, 255, 0.1);
+}
+
+.metadata-field input:focus,
+.metadata-field select:focus,
+.metadata-field textarea:focus {
+    outline: none;
+    border-color: #8b694b;
+    transform: translateX(1px) translateY(1px);
+    box-shadow: 
+        1px 1px 0px #111,
+        inset 0 1px 0px rgba(255, 255, 255, 0.15);
+}
+
+.metadata-field textarea {
+    resize: vertical;
+    min-height: 80px;
 }
 
 /* Processing Section Transitions */
