@@ -5,29 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Booklet Processor - PDF Page Reordering Tool</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Booklet Processor</h1>
-            <p>Reorder PDF pages for booklet printing with page numbers</p>
+            <h1>Document Processor</h1>
+            <p>PDF booklet processing and EPUB cover updating</p>
         </header>
 
         <main>
-            <div class="upload-section">
-                <h2>1. Upload PDF</h2>
-                <div class="file-upload">
-                    <input type="file" id="pdfFile" accept=".pdf" required>
-                    <label for="pdfFile" class="file-label">
-                        <span id="file-text">Choose PDF File</span>
-                    </label>
+            <!-- PDF Booklet Processing -->
+            <div class="processing-type-selector">
+                <h2>Choose Processing Type</h2>
+                <div class="type-buttons">
+                    <button id="pdfModeBtn" class="type-btn active">PDF Booklet</button>
+                    <button id="epubModeBtn" class="type-btn">EPUB Cover</button>
                 </div>
-                <div id="file-info" class="file-info hidden"></div>
             </div>
 
-            <div class="config-section hidden" id="configSection">
-                <h2>2. Configuration</h2>
+            <!-- PDF Processing Section -->
+            <div id="pdfProcessing" class="processing-section">
+                <div class="upload-section">
+                    <h2>1. Upload PDF</h2>
+                    <div class="file-upload">
+                        <input type="file" id="pdfFile" accept=".pdf" required>
+                        <label for="pdfFile" class="file-label">
+                            <span id="file-text">Choose PDF File</span>
+                        </label>
+                    </div>
+                    <div id="file-info" class="file-info hidden"></div>
+                </div>
+            </div>
+
+            <!-- EPUB Processing Section -->
+            <div id="epubProcessing" class="processing-section hidden">
+                <div class="upload-section">
+                    <h2>1. Upload Files</h2>
+                    <div class="epub-upload-grid">
+                        <div class="file-upload">
+                            <input type="file" id="epubFile" accept=".epub" required>
+                            <label for="epubFile" class="file-label">
+                                <span id="epub-file-text">Choose EPUB File</span>
+                            </label>
+                        </div>
+                        <div class="file-upload">
+                            <input type="file" id="coverFile" accept="image/*" required>
+                            <label for="coverFile" class="file-label">
+                                <span id="cover-file-text">Choose Cover Image</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="epub-file-info" class="file-info hidden"></div>
+                    <div id="cover-preview" class="cover-preview hidden"></div>
+                </div>
+            </div>
+
+            <!-- PDF Configuration -->
+            <div class="config-section hidden" id="pdfConfigSection">
+                <h2>2. PDF Configuration</h2>
                 
                 <div class="config-group">
                     <label for="pagesPerSheet">Pages per Sheet:</label>
@@ -47,7 +84,18 @@
                     </select>
                 </div>
 
-                <button id="processBtn" class="process-btn">Process PDF</button>
+                <button id="processPdfBtn" class="process-btn">Process PDF</button>
+            </div>
+
+            <!-- EPUB Configuration -->
+            <div class="config-section hidden" id="epubConfigSection">
+                <h2>2. EPUB Configuration</h2>
+                
+                <div class="config-group">
+                    <p>The new cover image will replace the existing cover in your EPUB file. The image will be automatically resized and optimized for EPUB readers.</p>
+                </div>
+
+                <button id="processEpubBtn" class="process-btn">Update EPUB Cover</button>
             </div>
 
             <div class="progress-section hidden" id="progressSection">
@@ -58,32 +106,60 @@
                 <div id="progressText">Processing...</div>
             </div>
 
-            <div class="result-section hidden" id="resultSection">
+            <!-- PDF Results -->
+            <div class="result-section hidden" id="pdfResultSection">
                 <h2>4. Download Result</h2>
                 <p>Your booklet has been processed successfully!</p>
-                <button id="downloadBtn" class="download-btn">Download Processed PDF</button>
+                <button id="downloadPdfBtn" class="download-btn">Download Processed PDF</button>
                 <div class="result-info">
                     <p><strong>Original pages:</strong> <span id="originalPages"></span></p>
                     <p><strong>Final pages:</strong> <span id="finalPages"></span></p>
                     <p><strong>Blank pages added:</strong> <span id="blankPages"></span></p>
                 </div>
             </div>
+
+            <!-- EPUB Results -->
+            <div class="result-section hidden" id="epubResultSection">
+                <h2>4. Download Result</h2>
+                <p>Your EPUB cover has been updated successfully!</p>
+                <button id="downloadEpubBtn" class="download-btn">Download Updated EPUB</button>
+                <div class="result-info">
+                    <p><strong>Original EPUB:</strong> <span id="originalEpubName"></span></p>
+                    <p><strong>New cover:</strong> <span id="newCoverName"></span></p>
+                    <p><strong>Cover format:</strong> <span id="coverFormat"></span></p>
+                </div>
+            </div>
         </main>
 
         <footer>
             <div class="instructions">
-                <h3>How to use:</h3>
+                <h3>PDF Booklet Processing:</h3>
                 <ol>
+                    <li>Select "PDF Booklet" mode</li>
                     <li>Upload your PDF file</li>
-                    <li>Choose your printing configuration</li>
-                    <li>Select signature size</li>
+                    <li>Choose your printing configuration and signature size</li>
                     <li>Process and download the reordered PDF</li>
                 </ol>
                 
-                <h3>Printing Instructions:</h3>
+                <h3>EPUB Cover Updating:</h3>
+                <ol>
+                    <li>Select "EPUB Cover" mode</li>
+                    <li>Upload your EPUB file and new cover image</li>
+                    <li>Preview the new cover</li>
+                    <li>Process and download the updated EPUB</li>
+                </ol>
+                
+                <h3>PDF Printing Instructions:</h3>
                 <ul>
                     <li><strong>4 pages per sheet:</strong> Print double-sided, long edge binding, then cut each sheet horizontally</li>
                     <li><strong>2 pages per sheet:</strong> Print double-sided, long edge binding, stack and fold</li>
+                </ul>
+
+                <h3>Supported Formats:</h3>
+                <ul>
+                    <li><strong>PDF:</strong> Any PDF file for booklet processing</li>
+                    <li><strong>EPUB:</strong> Standard EPUB 2.0/3.0 files</li>
+                    <li><strong>Cover Images:</strong> JPEG, PNG, GIF, WebP formats</li>
                 </ul>
             </div>
         </footer>
