@@ -330,47 +330,48 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: add sewing marks on the center vertical fold
-                const centerX = width / 2; // Center of the 2x2 grid
+                // For 4-pages-per-sheet: one vertical line with double holes (holes per pair × 2 pairs)
+                const centerX = width / 2; // Center of the entire sheet
+                const totalHoles = numHoles * 2; // Double the holes (setting × 2 pairs)
+                
                 const marginFromTopBottom = height * 0.1;
                 const availableHeight = height - (2 * marginFromTopBottom);
-                const spacing = availableHeight / (numHoles - 1);
+                const spacing = totalHoles > 1 ? availableHeight / (totalHoles - 1) : 0;
 
-                for (let hole = 0; hole < numHoles; hole++) {
+                for (let hole = 0; hole < totalHoles; hole++) {
                     const y = marginFromTopBottom + (hole * spacing);
                     
-                    // Draw sewing mark on the center fold
+                    // Draw sewing mark
                     copiedPage.drawCircle({
                         x: centerX,
                         y: y,
-                        size: 4,
+                        size: 3,
                         borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
                         borderWidth: 1.5
                     });
                     
-                    // Draw guide lines extending left and right
+                    // Draw guide lines
                     copiedPage.drawLine({
-                        start: { x: centerX - 12, y: y },
-                        end: { x: centerX + 12, y: y },
+                        start: { x: centerX - 8, y: y },
+                        end: { x: centerX + 8, y: y },
                         thickness: 0.8,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                     
-                    // Add vertical mark for precise fold positioning
+                    // Add vertical mark for fold positioning
                     copiedPage.drawLine({
-                        start: { x: centerX, y: y - 8 },
-                        end: { x: centerX, y: y + 8 },
+                        start: { x: centerX, y: y - 6 },
+                        end: { x: centerX, y: y + 6 },
                         thickness: 1,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                 }
                 
                 // Add text label
-                const sewText = `SEWING HOLES - CENTER FOLD`;
-                copiedPage.drawText(sewText, {
-                    x: centerX - 50,
-                    y: height - 25,
-                    size: 8,
+                copiedPage.drawText('FOLD & SEW', {
+                    x: centerX - 25,
+                    y: height - 15,
+                    size: 6,
                     color: PDFLib.rgb(0.5, 0.5, 0.5)
                 });
             } else {
@@ -431,38 +432,12 @@ class DocumentProcessor {
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
                     const midHeight = height / 2;
                     this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
-                    
-                    // Add cutting markers
-                    const cutText = '-- CUT HORIZONTALLY --';
-                    copiedPage.drawText(cutText, {
-                        x: 20,
-                        y: midHeight + 8,
-                        size: 8,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6)
-                    });
-                    
-                    copiedPage.drawText(cutText, {
-                        x: width - 140,
-                        y: midHeight + 8,
-                        size: 8,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6)
-                    });
                 }
                 
                 // Optional vertical line for 'both' option  
                 if (cuttingLines === 'both') {
                     const midWidth = width / 2;
                     this.drawDashedLine(copiedPage, midWidth, 20, midWidth, height - 20);
-                    
-                    // Add vertical cutting markers
-                    const cutVertText = 'CUT';
-                    copiedPage.drawText(cutVertText, {
-                        x: midWidth - 10,
-                        y: 20,
-                        size: 6,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6),
-                        rotate: PDFLib.degrees(90)
-                    });
                 }
             } else {
                 // Original single-page logic for 2-pages-per-sheet
