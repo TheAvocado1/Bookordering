@@ -226,16 +226,72 @@ class DocumentProcessor {
         const totalPages = pages.length;
         const signaturesCount = Math.floor(totalPages / signatureSize);
         
+        if (pagesPerSheet === 4) {
+            return await this.arrange4PagesPerSheet(pdfDoc, pattern, signatureSize, signaturesCount);
+        } else {
+            // Original logic for 2 pages per sheet
+            const newDoc = await PDFLib.PDFDocument.create();
+            
+            for (let sig = 0; sig < signaturesCount; sig++) {
+                const baseIndex = sig * signatureSize;
+                
+                for (let patternIndex of pattern) {
+                    const pageIndex = baseIndex + patternIndex;
+                    if (pageIndex < totalPages) {
+                        const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
+                        newDoc.addPage(copiedPage);
+                    }
+                }
+            }
+            
+            return newDoc;
+        }
+    }
+
+    async arrange4PagesPerSheet(pdfDoc, pattern, signatureSize, signaturesCount) {
+        const pages = pdfDoc.getPages();
         const newDoc = await PDFLib.PDFDocument.create();
+        
+        // Get original page dimensions
+        const originalPage = pages[0];
+        const { width: pageWidth, height: pageHeight } = originalPage.getSize();
+        
+        // Create larger sheets to hold 4 pages (2x2 grid)
+        const sheetWidth = pageWidth * 2;
+        const sheetHeight = pageHeight * 2;
         
         for (let sig = 0; sig < signaturesCount; sig++) {
             const baseIndex = sig * signatureSize;
             
-            for (let patternIndex of pattern) {
-                const pageIndex = baseIndex + patternIndex;
-                if (pageIndex < totalPages) {
-                    const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
-                    newDoc.addPage(copiedPage);
+            // Process pages in groups of 4 for each sheet
+            for (let i = 0; i < pattern.length; i += 4) {
+                const sheet = newDoc.addPage([sheetWidth, sheetHeight]);
+                
+                // Arrange 4 pages in 2x2 grid:
+                // Top-left, Top-right, Bottom-left, Bottom-right
+                const positions = [
+                    { x: 0, y: pageHeight },              // Top-left
+                    { x: pageWidth, y: pageHeight },      // Top-right  
+                    { x: 0, y: 0 },                      // Bottom-left
+                    { x: pageWidth, y: 0 }               // Bottom-right
+                ];
+                
+                for (let j = 0; j < 4 && (i + j) < pattern.length; j++) {
+                    const patternIndex = pattern[i + j];
+                    const pageIndex = baseIndex + patternIndex;
+                    
+                    if (pageIndex < pages.length) {
+                        const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
+                        const pos = positions[j];
+                        
+                        // Embed the page at the correct position
+                        sheet.drawPage(copiedPage, {
+                            x: pos.x,
+                            y: pos.y,
+                            width: pageWidth,
+                            height: pageHeight
+                        });
+                    }
                 }
             }
         }
@@ -256,37 +312,82 @@ class DocumentProcessor {
             const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
             const { width, height } = copiedPage.getSize();
             
-            // Determine if this page will be on the fold side (outer edge when booklet is folded)
-            // For 4 pages per sheet, pages 0,1,4,5,8,9... are on fold side
-            const pageInSignature = i % 16; // Assuming 16-page signatures
-            const isFoldSide = (pageInSignature % 4 === 0 || pageInSignature % 4 === 1);
+            // Check if this is a 4-pages-per-sheet layout
+            const isMultiPageSheet = width > height * 1.2;
             
-            if (isFoldSide) {
-                // Add sewing marks on the left edge (fold side)
-                const marginFromEdge = 15; // Not too close to edge
-                const marginFromTopBottom = 50; // Space from top/bottom
+            if (isMultiPageSheet) {
+                // For 4-pages-per-sheet: sewing marks go on the center fold (vertical center line)
+                const centerX = width / 2; // Center of the sheet
+                const marginFromTopBottom = height * 0.1; // 10% margin from top/bottom
                 const availableHeight = height - (2 * marginFromTopBottom);
                 const spacing = availableHeight / (numHoles - 1);
 
                 for (let hole = 0; hole < numHoles; hole++) {
                     const y = marginFromTopBottom + (hole * spacing);
                     
-                    // Draw small circle for sewing hole
+                    // Draw sewing mark on the center fold
                     copiedPage.drawCircle({
-                        x: marginFromEdge,
+                        x: centerX,
                         y: y,
-                        size: 3,
-                        borderColor: PDFLib.rgb(0.7, 0.7, 0.7),
-                        borderWidth: 1
+                        size: 4,
+                        borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
+                        borderWidth: 1.5
                     });
                     
-                    // Draw small guide mark
+                    // Draw guide lines extending slightly left and right
                     copiedPage.drawLine({
-                        start: { x: marginFromEdge - 8, y: y },
-                        end: { x: marginFromEdge + 8, y: y },
-                        thickness: 0.5,
-                        color: PDFLib.rgb(0.7, 0.7, 0.7)
+                        start: { x: centerX - 12, y: y },
+                        end: { x: centerX + 12, y: y },
+                        thickness: 0.8,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
+                    
+                    // Add small vertical mark for precise fold positioning
+                    copiedPage.drawLine({
+                        start: { x: centerX, y: y - 8 },
+                        end: { x: centerX, y: y + 8 },
+                        thickness: 1,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
+                    });
+                }
+                
+                // Add text label
+                const sewText = `SEWING MARKS - FOLD HERE`;
+                copiedPage.drawText(sewText, {
+                    x: centerX - 40,
+                    y: height - 25,
+                    size: 6,
+                    color: PDFLib.rgb(0.5, 0.5, 0.5)
+                });
+            } else {
+                // Original logic for 2-pages-per-sheet: marks on left edge
+                const pageInSignature = i % 16; 
+                const isFoldSide = (pageInSignature % 4 === 0 || pageInSignature % 4 === 1);
+                
+                if (isFoldSide) {
+                    const marginFromEdge = 15;
+                    const marginFromTopBottom = 50;
+                    const availableHeight = height - (2 * marginFromTopBottom);
+                    const spacing = availableHeight / (numHoles - 1);
+
+                    for (let hole = 0; hole < numHoles; hole++) {
+                        const y = marginFromTopBottom + (hole * spacing);
+                        
+                        copiedPage.drawCircle({
+                            x: marginFromEdge,
+                            y: y,
+                            size: 3,
+                            borderColor: PDFLib.rgb(0.7, 0.7, 0.7),
+                            borderWidth: 1
+                        });
+                        
+                        copiedPage.drawLine({
+                            start: { x: marginFromEdge - 8, y: y },
+                            end: { x: marginFromEdge + 8, y: y },
+                            thickness: 0.5,
+                            color: PDFLib.rgb(0.7, 0.7, 0.7)
+                        });
+                    }
                 }
             }
             
@@ -308,66 +409,51 @@ class DocumentProcessor {
             const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
             const { width, height } = copiedPage.getSize();
             
-            // Add horizontal cutting line (for cutting pages in half)
-            if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
-                const midHeight = height / 2;
-                const margin = 20; // Small margin from edges
-                
-                // Draw dashed cutting line across the middle
-                const dashLength = 5;
-                const gapLength = 3;
-                let x = margin;
-                
-                while (x < width - margin) {
-                    const endX = Math.min(x + dashLength, width - margin);
+            // Check if this is a 4-pages-per-sheet layout (sheet is 2x original page size)
+            const isMultiPageSheet = width > height * 1.2; // Heuristic to detect 2x2 layout
+            
+            if (isMultiPageSheet) {
+                // For 4-pages-per-sheet: add horizontal cutting line across middle
+                if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
+                    const midHeight = height / 2;
+                    this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
                     
-                    copiedPage.drawLine({
-                        start: { x: x, y: midHeight },
-                        end: { x: endX, y: midHeight },
-                        thickness: 0.5,
-                        color: PDFLib.rgb(0.8, 0.8, 0.8)
+                    // Add cutting markers
+                    const cutText = '-- CUT HERE --';
+                    copiedPage.drawText(cutText, {
+                        x: 10,
+                        y: midHeight - 8,
+                        size: 8,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6),
+                        rotate: PDFLib.degrees(90)
                     });
                     
-                    x = endX + gapLength;
+                    copiedPage.drawText(cutText, {
+                        x: width - 20,
+                        y: midHeight - 8,
+                        size: 8,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6),
+                        rotate: PDFLib.degrees(90)
+                    });
                 }
                 
-                // Add small cutting markers at ends
-                copiedPage.drawText('-- CUT --', {
-                    x: margin - 25,
-                    y: midHeight - 3,
-                    size: 6,
-                    color: PDFLib.rgb(0.7, 0.7, 0.7)
-                });
-                
-                copiedPage.drawText('-- CUT --', {
-                    x: width - margin - 20,
-                    y: midHeight - 3,
-                    size: 6,
-                    color: PDFLib.rgb(0.7, 0.7, 0.7)
-                });
-            }
-            
-            // Add vertical cutting lines (if both is selected)
-            if (cuttingLines === 'both') {
-                const midWidth = width / 2;
-                const margin = 20;
-                
-                // Draw dashed cutting line down the middle
-                const dashLength = 5;
-                const gapLength = 3;
-                let y = margin;
-                
-                while (y < height - margin) {
-                    const endY = Math.min(y + dashLength, height - margin);
+                // Optional vertical line for 'both' option (though not typically needed for booklets)
+                if (cuttingLines === 'both') {
+                    const midWidth = width / 2;
+                    this.drawDashedLine(copiedPage, midWidth, 20, midWidth, height - 20);
+                }
+            } else {
+                // Original single-page logic for 2-pages-per-sheet
+                if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
+                    const midHeight = height / 2;
+                    this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
                     
-                    copiedPage.drawLine({
-                        start: { x: midWidth, y: y },
-                        end: { x: midWidth, y: endY },
-                        thickness: 0.5,
-                        color: PDFLib.rgb(0.8, 0.8, 0.8)
+                    copiedPage.drawText('-- CUT --', {
+                        x: 5,
+                        y: midHeight - 3,
+                        size: 6,
+                        color: PDFLib.rgb(0.7, 0.7, 0.7)
                     });
-                    
-                    y = endY + gapLength;
                 }
             }
             
@@ -375,6 +461,33 @@ class DocumentProcessor {
         }
 
         return newDoc;
+    }
+
+    drawDashedLine(page, x1, y1, x2, y2) {
+        const dashLength = 8;
+        const gapLength = 4;
+        const totalLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const dx = (x2 - x1) / totalLength;
+        const dy = (y2 - y1) / totalLength;
+        
+        let currentLength = 0;
+        while (currentLength < totalLength) {
+            const startX = x1 + dx * currentLength;
+            const startY = y1 + dy * currentLength;
+            const endLength = Math.min(currentLength + dashLength, totalLength);
+            const endX = x1 + dx * endLength;
+            const endY = y1 + dy * endLength;
+            
+            page.drawLine({
+                start: { x: startX, y: startY },
+                end: { x: endX, y: endY },
+                thickness: 0.8,
+                color: PDFLib.rgb(0.7, 0.7, 0.7),
+                dashArray: []
+            });
+            
+            currentLength = endLength + gapLength;
+        }
     }
 
     // EPUB Cover Processing Methods
