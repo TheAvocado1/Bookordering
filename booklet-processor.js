@@ -330,19 +330,34 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: holes positioned relative to each page pair's edges
+                // For 4-pages-per-sheet: one continuous vertical line with holes positioned 
+                // so they align when cut (same relative distance from edges)
                 const centerX = width / 2; // Center of the entire sheet
                 const pageHeight = height / 2; // Height of each page in the grid
                 
-                // Calculate hole positions within each page pair
-                const marginFromEdge = pageHeight * 0.1; // Margin from top/bottom of each page
+                // Calculate hole positions - each hole appears twice (once per page pair)
+                // but positioned so they align after cutting
+                const marginFromEdge = pageHeight * 0.1; // Margin from edge of each page
                 const availablePageHeight = pageHeight - (2 * marginFromEdge);
                 const spacing = numHoles > 1 ? availablePageHeight / (numHoles - 1) : 0;
 
-                // Top pair holes (pages 1&16, 2&15, etc.)
+                const allHoles = [];
+                
+                // Add holes for top pair (relative to top of their section)
                 for (let hole = 0; hole < numHoles; hole++) {
-                    const y = pageHeight + marginFromEdge + (hole * spacing); // Start from bottom of top section
-                    
+                    allHoles.push(pageHeight + marginFromEdge + (hole * spacing));
+                }
+                
+                // Add holes for bottom pair (relative to bottom of their section)  
+                for (let hole = 0; hole < numHoles; hole++) {
+                    allHoles.push(marginFromEdge + (hole * spacing));
+                }
+                
+                // Sort all holes by y position to create one continuous line
+                allHoles.sort((a, b) => b - a); // Sort from top to bottom
+                
+                // Draw all holes
+                allHoles.forEach(y => {
                     // Draw sewing mark
                     copiedPage.drawCircle({
                         x: centerX,
@@ -367,37 +382,7 @@ class DocumentProcessor {
                         thickness: 1,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
-                }
-
-                // Bottom pair holes (pages 3&14, 4&13, etc.) - mirrored positioning
-                for (let hole = 0; hole < numHoles; hole++) {
-                    const y = marginFromEdge + (hole * spacing); // Start from bottom edge
-                    
-                    // Draw sewing mark
-                    copiedPage.drawCircle({
-                        x: centerX,
-                        y: y,
-                        size: 3,
-                        borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
-                        borderWidth: 1.5
-                    });
-                    
-                    // Draw guide lines
-                    copiedPage.drawLine({
-                        start: { x: centerX - 8, y: y },
-                        end: { x: centerX + 8, y: y },
-                        thickness: 0.8,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6)
-                    });
-                    
-                    // Add vertical mark for fold positioning
-                    copiedPage.drawLine({
-                        start: { x: centerX, y: y - 6 },
-                        end: { x: centerX, y: y + 6 },
-                        thickness: 1,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6)
-                    });
-                }
+                });
                 
                 // Add text label
                 copiedPage.drawText('FOLD & SEW', {
