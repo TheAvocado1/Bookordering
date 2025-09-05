@@ -226,18 +226,85 @@ class DocumentProcessor {
         const totalPages = pages.length;
         const signaturesCount = Math.floor(totalPages / signatureSize);
         
-        // Both 2 and 4 pages per sheet use the same reordering logic
-        // The difference is handled in the patterns and in post-processing
+        if (pagesPerSheet === 4) {
+            return await this.arrange4PagesPerSheet(pdfDoc, pattern, signatureSize, signaturesCount);
+        } else {
+            // Standard 2 pages per sheet logic
+            const newDoc = await PDFLib.PDFDocument.create();
+            
+            for (let sig = 0; sig < signaturesCount; sig++) {
+                const baseIndex = sig * signatureSize;
+                
+                for (let patternIndex of pattern) {
+                    const pageIndex = baseIndex + patternIndex;
+                    if (pageIndex < totalPages) {
+                        const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
+                        newDoc.addPage(copiedPage);
+                    }
+                }
+            }
+            
+            return newDoc;
+        }
+    }
+
+    async arrange4PagesPerSheet(pdfDoc, pattern, signatureSize, signaturesCount) {
+        const pages = pdfDoc.getPages();
         const newDoc = await PDFLib.PDFDocument.create();
+        
+        // Get original page dimensions
+        const originalPage = pages[0];
+        const { width: pageWidth, height: pageHeight } = originalPage.getSize();
+        
+        // Create larger sheets to hold 4 pages (2x2 grid)
+        const sheetWidth = pageWidth * 2;
+        const sheetHeight = pageHeight * 2;
+        
+        // First, create temporary PDFs for each page to embed as forms
+        const pageBytes = await pdfDoc.save();
+        const tempDoc = await PDFLib.PDFDocument.load(pageBytes);
         
         for (let sig = 0; sig < signaturesCount; sig++) {
             const baseIndex = sig * signatureSize;
             
-            for (let patternIndex of pattern) {
-                const pageIndex = baseIndex + patternIndex;
-                if (pageIndex < totalPages) {
-                    const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
-                    newDoc.addPage(copiedPage);
+            // Process pages in groups of 4 for each sheet
+            for (let i = 0; i < pattern.length; i += 4) {
+                const sheet = newDoc.addPage([sheetWidth, sheetHeight]);
+                
+                // Arrange 4 pages in 2x2 grid:
+                // Top-left, Top-right, Bottom-left, Bottom-right
+                const positions = [
+                    { x: 0, y: pageHeight },              // Top-left
+                    { x: pageWidth, y: pageHeight },      // Top-right  
+                    { x: 0, y: 0 },                      // Bottom-left
+                    { x: pageWidth, y: 0 }               // Bottom-right
+                ];
+                
+                for (let j = 0; j < 4 && (i + j) < pattern.length; j++) {
+                    const patternIndex = pattern[i + j];
+                    const pageIndex = baseIndex + patternIndex;
+                    
+                    if (pageIndex < pages.length) {
+                        const pos = positions[j];
+                        
+                        // Create a single-page PDF document for this page
+                        const singlePageDoc = await PDFLib.PDFDocument.create();
+                        const [copiedPage] = await singlePageDoc.copyPages(tempDoc, [pageIndex]);
+                        singlePageDoc.addPage(copiedPage);
+                        const singlePageBytes = await singlePageDoc.save();
+                        
+                        // Embed the single-page PDF as a form
+                        const embeddedPdf = await newDoc.embedPdf(singlePageBytes);
+                        const [form] = embeddedPdf;
+                        
+                        // Draw the form on the sheet
+                        sheet.drawPage(form, {
+                            x: pos.x,
+                            y: pos.y,
+                            width: pageWidth,
+                            height: pageHeight
+                        });
+                    }
                 }
             }
         }
@@ -263,8 +330,8 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: add sewing marks on the left edge (they'll be at center after printing)
-                const marginFromEdge = 15;
+                // For 4-pages-per-sheet: add sewing marks on the center vertical fold
+                const centerX = width / 2; // Center of the 2x2 grid
                 const marginFromTopBottom = height * 0.1;
                 const availableHeight = height - (2 * marginFromTopBottom);
                 const spacing = availableHeight / (numHoles - 1);
@@ -272,30 +339,38 @@ class DocumentProcessor {
                 for (let hole = 0; hole < numHoles; hole++) {
                     const y = marginFromTopBottom + (hole * spacing);
                     
-                    // Draw sewing mark on the left edge
+                    // Draw sewing mark on the center fold
                     copiedPage.drawCircle({
-                        x: marginFromEdge,
+                        x: centerX,
                         y: y,
                         size: 4,
                         borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
                         borderWidth: 1.5
                     });
                     
-                    // Draw guide lines
+                    // Draw guide lines extending left and right
                     copiedPage.drawLine({
-                        start: { x: marginFromEdge - 8, y: y },
-                        end: { x: marginFromEdge + 8, y: y },
+                        start: { x: centerX - 12, y: y },
+                        end: { x: centerX + 12, y: y },
                         thickness: 0.8,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
+                    });
+                    
+                    // Add vertical mark for precise fold positioning
+                    copiedPage.drawLine({
+                        start: { x: centerX, y: y - 8 },
+                        end: { x: centerX, y: y + 8 },
+                        thickness: 1,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                 }
                 
                 // Add text label
-                const sewText = `SEWING HOLES (4-per-sheet)`;
+                const sewText = `SEWING HOLES - CENTER FOLD`;
                 copiedPage.drawText(sewText, {
-                    x: marginFromEdge - 5,
+                    x: centerX - 50,
                     y: height - 25,
-                    size: 6,
+                    size: 8,
                     color: PDFLib.rgb(0.5, 0.5, 0.5)
                 });
             } else {
@@ -358,19 +433,35 @@ class DocumentProcessor {
                     this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
                     
                     // Add cutting markers
-                    const cutText = 'CUT (4-per-sheet)';
+                    const cutText = '-- CUT HORIZONTALLY --';
                     copiedPage.drawText(cutText, {
-                        x: 10,
-                        y: midHeight + 5,
-                        size: 6,
+                        x: 20,
+                        y: midHeight + 8,
+                        size: 8,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                     
                     copiedPage.drawText(cutText, {
-                        x: width - 80,
-                        y: midHeight + 5,
-                        size: 6,
+                        x: width - 140,
+                        y: midHeight + 8,
+                        size: 8,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
+                    });
+                }
+                
+                // Optional vertical line for 'both' option  
+                if (cuttingLines === 'both') {
+                    const midWidth = width / 2;
+                    this.drawDashedLine(copiedPage, midWidth, 20, midWidth, height - 20);
+                    
+                    // Add vertical cutting markers
+                    const cutVertText = 'CUT';
+                    copiedPage.drawText(cutVertText, {
+                        x: midWidth - 10,
+                        y: 20,
+                        size: 6,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6),
+                        rotate: PDFLib.degrees(90)
                     });
                 }
             } else {
