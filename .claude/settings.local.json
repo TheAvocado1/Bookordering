@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py:*)",
+      "Read(/C:\\Users\\katea\\Documents\\GitHub\\Bookordering/**)",
+      "Read(/C:\\Users\\katea\\Documents\\GitHub\\Bookordering/**)",
+      "Read(/C:\\Users\\katea\\Documents\\GitHub\\Bookordering/**)",
+      "Read(/C:\\Users\\katea\\Documents\\GitHub\\Bookordering/**)",
+      "Read(/C:\\Users\\katea\\Documents\\GitHub\\Bookordering/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

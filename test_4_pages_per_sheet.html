@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test 4-Pages-Per-Sheet Functionality</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005a87; }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Test 4-Pages-Per-Sheet Functionality</h1>
+    
+    <div class="test-section">
+        <h2>Step 1: Create Test PDF</h2>
+        <p>First, let's create a simple 8-page test PDF with clearly labeled pages.</p>
+        <button onclick="createTestPDF()">Create Test PDF (8 pages)</button>
+        <div id="createResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 2: Test 4-Pages-Per-Sheet Processing</h2>
+        <p>Process the test PDF using our 4-pages-per-sheet functionality.</p>
+        <button onclick="test4PagesPerSheet()" disabled id="testBtn">Test 4-Pages-Per-Sheet</button>
+        <div id="testResult"></div>
+    </div>
+
+    <script src="booklet-processor.js"></script>
+    <script>
+        let testPdfBytes = null;
+        let processor = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            processor = new DocumentProcessor();
+        });
+
+        async function createTestPDF() {
+            const resultDiv = document.getElementById('createResult');
+            try {
+                resultDiv.innerHTML = '<div class="info">Creating test PDF...</div>';
+                
+                const pdfDoc = await PDFLib.PDFDocument.create();
+                
+                // Create 8 pages with clear labels
+                for (let i = 1; i <= 8; i++) {
+                    const page = pdfDoc.addPage([612, 792]); // Standard letter size
+                    
+                    // Draw large page number
+                    page.drawText(`PAGE ${i}`, {
+                        x: 250,
+                        y: 400,
+                        size: 48,
+                        color: PDFLib.rgb(0, 0, 0)
+                    });
+                    
+                    // Draw border
+                    page.drawRectangle({
+                        x: 50,
+                        y: 50,
+                        width: 512,
+                        height: 692,
+                        borderColor: PDFLib.rgb(0, 0, 0),
+                        borderWidth: 2
+                    });
+                    
+                    // Add corner markers
+                    const corners = [
+                        { x: 60, y: 730, label: 'TL' },
+                        { x: 540, y: 730, label: 'TR' },
+                        { x: 60, y: 70, label: 'BL' },
+                        { x: 540, y: 70, label: 'BR' }
+                    ];
+                    
+                    corners.forEach(corner => {
+                        page.drawText(corner.label, {
+                            x: corner.x,
+                            y: corner.y,
+                            size: 12,
+                            color: PDFLib.rgb(0.5, 0.5, 0.5)
+                        });
+                    });
+                }
+                
+                testPdfBytes = await pdfDoc.save();
+                
+                // Create download link
+                const blob = new Blob([testPdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Test PDF created successfully! (8 pages)<br>
+                        <a href="${url}" download="test-input.pdf">Download Test PDF</a>
+                    </div>
+                `;
+                
+                // Enable the test button
+                document.getElementById('testBtn').disabled = false;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error creating test PDF: ${error.message}</div>`;
+                console.error('Error creating test PDF:', error);
+            }
+        }
+
+        async function test4PagesPerSheet() {
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!testPdfBytes) {
+                resultDiv.innerHTML = '<div class="error">❌ Please create test PDF first</div>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '<div class="info">Processing with 4-pages-per-sheet...</div>';
+                
+                // Load the test PDF
+                const pdfDoc = await PDFLib.PDFDocument.load(testPdfBytes);
+                const originalPageCount = pdfDoc.getPageCount();
+                
+                // Process using our booklet processor
+                const numberedDoc = await processor.addPageNumbers(pdfDoc);
+                const { paddedDoc, blankPagesAdded } = await processor.addBlankPages(numberedDoc, 8);
+                const reorderedDoc = await processor.reorderPages(paddedDoc, 8, 4); // 8-page signature, 4 per sheet
+                const markedDoc = await processor.addSewingMarks(reorderedDoc, '4', 4);
+                const finalDoc = await processor.addCuttingLines(markedDoc, 'horizontal', 4);
+                
+                const finalBytes = await finalDoc.save();
+                const finalPageCount = finalDoc.getPageCount();
+                
+                // Calculate expected results
+                const expectedSheets = Math.ceil(8 / 4); // 8 pages ÷ 4 per sheet = 2 sheets
+                
+                // Create download link
+                const blob = new Blob([finalBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Processing completed successfully!<br>
+                        <strong>Original pages:</strong> ${originalPageCount}<br>
+                        <strong>Final pages:</strong> ${finalPageCount}<br>
+                        <strong>Blank pages added:</strong> ${blankPagesAdded}<br>
+                        <strong>Expected sheets:</strong> ${expectedSheets}<br>
+                        <br>
+                        <a href="${url}" download="test-4-pages-per-sheet.pdf">Download Processed PDF</a>
+                        <br><br>
+                        <strong>Expected layout:</strong><br>
+                        • Each sheet should show 4 book pages in a 2x2 grid<br>
+                        • Sewing holes should appear on the center vertical fold<br>
+                        • Horizontal cutting line should appear across the middle<br>
+                        • Pages should be in correct booklet order
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error processing PDF: ${error.message}</div>`;
+                console.error('Error processing PDF:', error);
+            }
+        }
+    </script>
+</body>
+</html>
