@@ -146,6 +146,25 @@
                     </select>
                 </div>
 
+                <div class="config-group">
+                    <label for="sewingMarks">Sewing Marks:</label>
+                    <select id="sewingMarks">
+                        <option value="none">No sewing marks</option>
+                        <option value="4" selected>4 evenly spaced holes</option>
+                        <option value="6">6 evenly spaced holes</option>
+                        <option value="8">8 evenly spaced holes</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label for="cuttingLines">Cutting Lines:</label>
+                    <select id="cuttingLines">
+                        <option value="none">No cutting lines</option>
+                        <option value="horizontal" selected>Horizontal cutting lines</option>
+                        <option value="both">Horizontal and vertical cutting lines</option>
+                    </select>
+                </div>
+
                 <button id="processPdfBtn" class="process-btn">Process PDF</button>
             </div>
 
@@ -257,8 +276,8 @@
                 <ol>
                     <li>Select "PDF Booklet" mode</li>
                     <li>Upload your PDF file</li>
-                    <li>Choose printing configuration and signature size</li>
-                    <li>Process and download the reordered PDF</li>
+                    <li>Choose printing configuration, signature size, sewing marks, and cutting lines</li>
+                    <li>Process and download the reordered PDF with marks and guides</li>
                 </ol>
                 
                 <h3>EPUB Cover Updating:</h3>
@@ -289,6 +308,8 @@
                 <ul>
                     <li><strong>4 pages per sheet:</strong> Print double-sided, long edge binding, then cut horizontally</li>
                     <li><strong>2 pages per sheet:</strong> Print double-sided, long edge binding, stack and fold</li>
+                    <li><strong>Sewing Marks:</strong> Evenly spaced holes appear on fold edges for binding with thread or wire</li>
+                    <li><strong>Cutting Lines:</strong> Dashed lines with scissor marks show where to cut pages horizontally</li>
                 </ul>
 
                 <h3>Supported Formats:</h3>

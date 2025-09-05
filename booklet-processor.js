@@ -125,6 +125,8 @@ class DocumentProcessor {
             const fileInput = document.getElementById('pdfFile');
             const pagesPerSheet = parseInt(document.getElementById('pagesPerSheet').value);
             const signatureSize = parseInt(document.getElementById('signatureSize').value);
+            const sewingMarks = document.getElementById('sewingMarks').value;
+            const cuttingLines = document.getElementById('cuttingLines').value;
 
             if (!fileInput.files[0]) {
                 alert('Please select a PDF file');
@@ -143,9 +145,15 @@ class DocumentProcessor {
             const { paddedDoc, blankPagesAdded } = await this.addBlankPages(numberedDoc, signatureSize);
             
             this.showProgress(60, 'Reordering pages...');
-            const finalDoc = await this.reorderPages(paddedDoc, signatureSize, pagesPerSheet);
+            const reorderedDoc = await this.reorderPages(paddedDoc, signatureSize, pagesPerSheet);
             
-            this.showProgress(80, 'Generating final PDF...');
+            this.showProgress(70, 'Adding sewing marks...');
+            const markedDoc = await this.addSewingMarks(reorderedDoc, sewingMarks);
+            
+            this.showProgress(80, 'Adding cutting lines...');
+            const finalDoc = await this.addCuttingLines(markedDoc, cuttingLines);
+            
+            this.showProgress(90, 'Generating final PDF...');
             this.processedBytes.pdf = await finalDoc.save();
             
             this.showProgress(100, 'Complete!');
@@ -229,6 +237,140 @@ class DocumentProcessor {
             }
         }
         
+        return newDoc;
+    }
+
+    async addSewingMarks(pdfDoc, sewingMarks) {
+        if (sewingMarks === 'none') {
+            return pdfDoc;
+        }
+
+        const newDoc = await PDFLib.PDFDocument.create();
+        const pages = pdfDoc.getPages();
+        const numHoles = parseInt(sewingMarks);
+
+        for (let i = 0; i < pages.length; i++) {
+            const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
+            const { width, height } = copiedPage.getSize();
+            
+            // Determine if this page will be on the fold side (outer edge when booklet is folded)
+            // For 4 pages per sheet, pages 0,1,4,5,8,9... are on fold side
+            const pageInSignature = i % 16; // Assuming 16-page signatures
+            const isFoldSide = (pageInSignature % 4 === 0 || pageInSignature % 4 === 1);
+            
+            if (isFoldSide) {
+                // Add sewing marks on the left edge (fold side)
+                const marginFromEdge = 15; // Not too close to edge
+                const marginFromTopBottom = 50; // Space from top/bottom
+                const availableHeight = height - (2 * marginFromTopBottom);
+                const spacing = availableHeight / (numHoles - 1);
+
+                for (let hole = 0; hole < numHoles; hole++) {
+                    const y = marginFromTopBottom + (hole * spacing);
+                    
+                    // Draw small circle for sewing hole
+                    copiedPage.drawCircle({
+                        x: marginFromEdge,
+                        y: y,
+                        size: 3,
+                        borderColor: PDFLib.rgb(0.7, 0.7, 0.7),
+                        borderWidth: 1
+                    });
+                    
+                    // Draw small guide mark
+                    copiedPage.drawLine({
+                        start: { x: marginFromEdge - 8, y: y },
+                        end: { x: marginFromEdge + 8, y: y },
+                        thickness: 0.5,
+                        color: PDFLib.rgb(0.7, 0.7, 0.7)
+                    });
+                }
+            }
+            
+            newDoc.addPage(copiedPage);
+        }
+
+        return newDoc;
+    }
+
+    async addCuttingLines(pdfDoc, cuttingLines) {
+        if (cuttingLines === 'none') {
+            return pdfDoc;
+        }
+
+        const newDoc = await PDFLib.PDFDocument.create();
+        const pages = pdfDoc.getPages();
+
+        for (let i = 0; i < pages.length; i++) {
+            const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
+            const { width, height } = copiedPage.getSize();
+            
+            // Add horizontal cutting line (for cutting pages in half)
+            if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
+                const midHeight = height / 2;
+                const margin = 20; // Small margin from edges
+                
+                // Draw dashed cutting line across the middle
+                const dashLength = 5;
+                const gapLength = 3;
+                let x = margin;
+                
+                while (x < width - margin) {
+                    const endX = Math.min(x + dashLength, width - margin);
+                    
+                    copiedPage.drawLine({
+                        start: { x: x, y: midHeight },
+                        end: { x: endX, y: midHeight },
+                        thickness: 0.5,
+                        color: PDFLib.rgb(0.8, 0.8, 0.8)
+                    });
+                    
+                    x = endX + gapLength;
+                }
+                
+                // Add small scissor symbols at ends
+                copiedPage.drawText('✂', {
+                    x: margin - 15,
+                    y: midHeight - 3,
+                    size: 8,
+                    color: PDFLib.rgb(0.7, 0.7, 0.7)
+                });
+                
+                copiedPage.drawText('✂', {
+                    x: width - margin + 5,
+                    y: midHeight - 3,
+                    size: 8,
+                    color: PDFLib.rgb(0.7, 0.7, 0.7)
+                });
+            }
+            
+            // Add vertical cutting lines (if both is selected)
+            if (cuttingLines === 'both') {
+                const midWidth = width / 2;
+                const margin = 20;
+                
+                // Draw dashed cutting line down the middle
+                const dashLength = 5;
+                const gapLength = 3;
+                let y = margin;
+                
+                while (y < height - margin) {
+                    const endY = Math.min(y + dashLength, height - margin);
+                    
+                    copiedPage.drawLine({
+                        start: { x: midWidth, y: y },
+                        end: { x: midWidth, y: endY },
+                        thickness: 0.5,
+                        color: PDFLib.rgb(0.8, 0.8, 0.8)
+                    });
+                    
+                    y = endY + gapLength;
+                }
+            }
+            
+            newDoc.addPage(copiedPage);
+        }
+
         return newDoc;
     }
 
