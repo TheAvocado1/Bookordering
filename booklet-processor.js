@@ -180,7 +180,9 @@ class DocumentProcessor {
             
             const { width, height } = copiedPage.getSize();
             
-            copiedPage.drawText(pageNum.toString(), {
+            // Ensure page number is clean ASCII text
+            const pageText = String(pageNum).replace(/[^\x00-\x7F]/g, '');
+            copiedPage.drawText(pageText, {
                 x: width / 2 - 10,
                 y: 30,
                 size: 12,
@@ -205,7 +207,8 @@ class DocumentProcessor {
             for (let i = 0; i < blankPagesAdded; i++) {
                 const blankPage = pdfDoc.addPage([width, height]);
                 const pageNum = currentPages + i + 1;
-                blankPage.drawText(pageNum.toString(), {
+                const pageText = String(pageNum).replace(/[^\x00-\x7F]/g, '');
+                blankPage.drawText(pageText, {
                     x: width / 2 - 10,
                     y: 30,
                     size: 12,
@@ -329,15 +332,15 @@ class DocumentProcessor {
                 }
                 
                 // Add small cutting markers at ends
-                copiedPage.drawText('CUT', {
-                    x: margin - 18,
+                copiedPage.drawText('-- CUT --', {
+                    x: margin - 25,
                     y: midHeight - 3,
                     size: 6,
                     color: PDFLib.rgb(0.7, 0.7, 0.7)
                 });
                 
-                copiedPage.drawText('CUT', {
-                    x: width - margin + 5,
+                copiedPage.drawText('-- CUT --', {
+                    x: width - margin - 20,
                     y: midHeight - 3,
                     size: 6,
                     color: PDFLib.rgb(0.7, 0.7, 0.7)
