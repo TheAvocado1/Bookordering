@@ -293,7 +293,7 @@ class BookletProcessor:
         while True:
             try:
                 # Get input file
-                print("\n" + "─" * 40)
+                print("\n" + "-" * 40)
                 filename = input(" Enter PDF filename (without .pdf): ").strip()
                 
                 if not filename:

@@ -41,7 +41,7 @@ def test_file_validation():
         else:
             result = input_name if input_name.lower().endswith('.pdf') else input_name + '.pdf'
         
-        status = "✅" if result == expected else "❌"
+        status = "OK" if result == expected else "FAIL"
         print(f"  {status} Input: '{input_name}' -> Expected: {expected}, Got: {result}")
     
     return True
@@ -62,7 +62,7 @@ def test_blank_pages_calculation():
         if pages_needed == signature_size:
             pages_needed = 0
         
-        status = "✅" if pages_needed == expected_blank else "❌"
+        status = "OK" if pages_needed == expected_blank else "FAIL"
         print(f"  {status} {current_pages} pages, sig {signature_size} -> need {pages_needed} blank pages")
     
     return True
@@ -85,14 +85,14 @@ def main():
             if not passed:
                 all_passed = False
         except Exception as e:
-            print(f"❌ Test failed with error: {e}")
+            print(f"FAIL Test failed with error: {e}")
             all_passed = False
     
     print("\n" + "=" * 50)
     if all_passed:
-        print("✅ All tests passed! The improved program should work correctly.")
+        print("OK All tests passed! The improved program should work correctly.")
     else:
-        print("❌ Some tests failed. Check the implementation.")
+        print("FAIL Some tests failed. Check the implementation.")
     print("=" * 50)
 
 if __name__ == "__main__":
