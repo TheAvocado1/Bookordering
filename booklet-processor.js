@@ -148,10 +148,10 @@ class DocumentProcessor {
             const reorderedDoc = await this.reorderPages(paddedDoc, signatureSize, pagesPerSheet);
             
             this.showProgress(70, 'Adding sewing marks...');
-            const markedDoc = await this.addSewingMarks(reorderedDoc, sewingMarks);
+            const markedDoc = await this.addSewingMarks(reorderedDoc, sewingMarks, pagesPerSheet);
             
             this.showProgress(80, 'Adding cutting lines...');
-            const finalDoc = await this.addCuttingLines(markedDoc, cuttingLines);
+            const finalDoc = await this.addCuttingLines(markedDoc, cuttingLines, pagesPerSheet);
             
             this.showProgress(90, 'Generating final PDF...');
             this.processedBytes.pdf = await finalDoc.save();
@@ -226,73 +226,18 @@ class DocumentProcessor {
         const totalPages = pages.length;
         const signaturesCount = Math.floor(totalPages / signatureSize);
         
-        if (pagesPerSheet === 4) {
-            return await this.arrange4PagesPerSheet(pdfDoc, pattern, signatureSize, signaturesCount);
-        } else {
-            // Original logic for 2 pages per sheet
-            const newDoc = await PDFLib.PDFDocument.create();
-            
-            for (let sig = 0; sig < signaturesCount; sig++) {
-                const baseIndex = sig * signatureSize;
-                
-                for (let patternIndex of pattern) {
-                    const pageIndex = baseIndex + patternIndex;
-                    if (pageIndex < totalPages) {
-                        const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
-                        newDoc.addPage(copiedPage);
-                    }
-                }
-            }
-            
-            return newDoc;
-        }
-    }
-
-    async arrange4PagesPerSheet(pdfDoc, pattern, signatureSize, signaturesCount) {
-        const pages = pdfDoc.getPages();
+        // Both 2 and 4 pages per sheet use the same reordering logic
+        // The difference is handled in the patterns and in post-processing
         const newDoc = await PDFLib.PDFDocument.create();
-        
-        // Get original page dimensions
-        const originalPage = pages[0];
-        const { width: pageWidth, height: pageHeight } = originalPage.getSize();
-        
-        // Create larger sheets to hold 4 pages (2x2 grid)
-        const sheetWidth = pageWidth * 2;
-        const sheetHeight = pageHeight * 2;
         
         for (let sig = 0; sig < signaturesCount; sig++) {
             const baseIndex = sig * signatureSize;
             
-            // Process pages in groups of 4 for each sheet
-            for (let i = 0; i < pattern.length; i += 4) {
-                const sheet = newDoc.addPage([sheetWidth, sheetHeight]);
-                
-                // Arrange 4 pages in 2x2 grid:
-                // Top-left, Top-right, Bottom-left, Bottom-right
-                const positions = [
-                    { x: 0, y: pageHeight },              // Top-left
-                    { x: pageWidth, y: pageHeight },      // Top-right  
-                    { x: 0, y: 0 },                      // Bottom-left
-                    { x: pageWidth, y: 0 }               // Bottom-right
-                ];
-                
-                for (let j = 0; j < 4 && (i + j) < pattern.length; j++) {
-                    const patternIndex = pattern[i + j];
-                    const pageIndex = baseIndex + patternIndex;
-                    
-                    if (pageIndex < pages.length) {
-                        // First embed the page from the original document
-                        const embeddedPage = await newDoc.embedPage(pages[pageIndex]);
-                        const pos = positions[j];
-                        
-                        // Then draw the embedded page on the sheet
-                        sheet.drawPage(embeddedPage, {
-                            x: pos.x,
-                            y: pos.y,
-                            width: pageWidth,
-                            height: pageHeight
-                        });
-                    }
+            for (let patternIndex of pattern) {
+                const pageIndex = baseIndex + patternIndex;
+                if (pageIndex < totalPages) {
+                    const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
+                    newDoc.addPage(copiedPage);
                 }
             }
         }
@@ -300,7 +245,8 @@ class DocumentProcessor {
         return newDoc;
     }
 
-    async addSewingMarks(pdfDoc, sewingMarks) {
+
+    async addSewingMarks(pdfDoc, sewingMarks, pagesPerSheet = 2) {
         if (sewingMarks === 'none') {
             return pdfDoc;
         }
@@ -314,48 +260,40 @@ class DocumentProcessor {
             const { width, height } = copiedPage.getSize();
             
             // Check if this is a 4-pages-per-sheet layout
-            const isMultiPageSheet = width > height * 1.2;
+            const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: sewing marks go on the center fold (vertical center line)
-                const centerX = width / 2; // Center of the sheet
-                const marginFromTopBottom = height * 0.1; // 10% margin from top/bottom
+                // For 4-pages-per-sheet: add sewing marks on the left edge (they'll be at center after printing)
+                const marginFromEdge = 15;
+                const marginFromTopBottom = height * 0.1;
                 const availableHeight = height - (2 * marginFromTopBottom);
                 const spacing = availableHeight / (numHoles - 1);
 
                 for (let hole = 0; hole < numHoles; hole++) {
                     const y = marginFromTopBottom + (hole * spacing);
                     
-                    // Draw sewing mark on the center fold
+                    // Draw sewing mark on the left edge
                     copiedPage.drawCircle({
-                        x: centerX,
+                        x: marginFromEdge,
                         y: y,
                         size: 4,
                         borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
                         borderWidth: 1.5
                     });
                     
-                    // Draw guide lines extending slightly left and right
+                    // Draw guide lines
                     copiedPage.drawLine({
-                        start: { x: centerX - 12, y: y },
-                        end: { x: centerX + 12, y: y },
+                        start: { x: marginFromEdge - 8, y: y },
+                        end: { x: marginFromEdge + 8, y: y },
                         thickness: 0.8,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6)
-                    });
-                    
-                    // Add small vertical mark for precise fold positioning
-                    copiedPage.drawLine({
-                        start: { x: centerX, y: y - 8 },
-                        end: { x: centerX, y: y + 8 },
-                        thickness: 1,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                 }
                 
                 // Add text label
-                const sewText = `SEWING MARKS - FOLD HERE`;
+                const sewText = `SEWING HOLES (4-per-sheet)`;
                 copiedPage.drawText(sewText, {
-                    x: centerX - 40,
+                    x: marginFromEdge - 5,
                     y: height - 25,
                     size: 6,
                     color: PDFLib.rgb(0.5, 0.5, 0.5)
@@ -398,7 +336,7 @@ class DocumentProcessor {
         return newDoc;
     }
 
-    async addCuttingLines(pdfDoc, cuttingLines) {
+    async addCuttingLines(pdfDoc, cuttingLines, pagesPerSheet = 2) {
         if (cuttingLines === 'none') {
             return pdfDoc;
         }
@@ -410,8 +348,8 @@ class DocumentProcessor {
             const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
             const { width, height } = copiedPage.getSize();
             
-            // Check if this is a 4-pages-per-sheet layout (sheet is 2x original page size)
-            const isMultiPageSheet = width > height * 1.2; // Heuristic to detect 2x2 layout
+            // Check if this is a 4-pages-per-sheet layout
+            const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
                 // For 4-pages-per-sheet: add horizontal cutting line across middle
@@ -420,28 +358,20 @@ class DocumentProcessor {
                     this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
                     
                     // Add cutting markers
-                    const cutText = '-- CUT HERE --';
+                    const cutText = 'CUT (4-per-sheet)';
                     copiedPage.drawText(cutText, {
                         x: 10,
-                        y: midHeight - 8,
-                        size: 8,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6),
-                        rotate: PDFLib.degrees(90)
+                        y: midHeight + 5,
+                        size: 6,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                     
                     copiedPage.drawText(cutText, {
-                        x: width - 20,
-                        y: midHeight - 8,
-                        size: 8,
-                        color: PDFLib.rgb(0.6, 0.6, 0.6),
-                        rotate: PDFLib.degrees(90)
+                        x: width - 80,
+                        y: midHeight + 5,
+                        size: 6,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
-                }
-                
-                // Optional vertical line for 'both' option (though not typically needed for booklets)
-                if (cuttingLines === 'both') {
-                    const midWidth = width / 2;
-                    this.drawDashedLine(copiedPage, midWidth, 20, midWidth, height - 20);
                 }
             } else {
                 // Original single-page logic for 2-pages-per-sheet
