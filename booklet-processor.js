@@ -281,11 +281,12 @@ class DocumentProcessor {
                     const pageIndex = baseIndex + patternIndex;
                     
                     if (pageIndex < pages.length) {
-                        const [copiedPage] = await newDoc.copyPages(pdfDoc, [pageIndex]);
+                        // First embed the page from the original document
+                        const embeddedPage = await newDoc.embedPage(pages[pageIndex]);
                         const pos = positions[j];
                         
-                        // Embed the page at the correct position
-                        sheet.drawPage(copiedPage, {
+                        // Then draw the embedded page on the sheet
+                        sheet.drawPage(embeddedPage, {
                             x: pos.x,
                             y: pos.y,
                             width: pageWidth,
