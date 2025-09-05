@@ -328,18 +328,18 @@ class DocumentProcessor {
                     x = endX + gapLength;
                 }
                 
-                // Add small scissor symbols at ends
-                copiedPage.drawText('✂', {
-                    x: margin - 15,
+                // Add small cutting markers at ends
+                copiedPage.drawText('CUT', {
+                    x: margin - 18,
                     y: midHeight - 3,
-                    size: 8,
+                    size: 6,
                     color: PDFLib.rgb(0.7, 0.7, 0.7)
                 });
                 
-                copiedPage.drawText('✂', {
+                copiedPage.drawText('CUT', {
                     x: width - margin + 5,
                     y: midHeight - 3,
-                    size: 8,
+                    size: 6,
                     color: PDFLib.rgb(0.7, 0.7, 0.7)
                 });
             }
