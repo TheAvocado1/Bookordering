@@ -1,4 +1,4 @@
-// Document Processor - PDF Booklet, EPUB Cover, PDF Merger & PDF→EPUB Conversion
+// Document Processor - PDF Booklet, EPUB Cover, PDF Merger & PDF to EPUB Conversion
 class DocumentProcessor {
     constructor() {
         this.currentMode = 'pdf';
