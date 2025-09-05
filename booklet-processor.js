@@ -384,13 +384,6 @@ class DocumentProcessor {
                     });
                 });
                 
-                // Add text label
-                copiedPage.drawText('FOLD & SEW', {
-                    x: centerX - 25,
-                    y: height - 15,
-                    size: 6,
-                    color: PDFLib.rgb(0.5, 0.5, 0.5)
-                });
             } else {
                 // Original logic for 2-pages-per-sheet: marks on left edge
                 const pageInSignature = i % 16; 
