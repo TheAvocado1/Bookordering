@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Current Web Functionality</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+    <h1>Quick PDF-lib Test</h1>
+    <button onclick="testPDFLib()">Test PDF-lib Basic Functions</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPDFLib() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.innerHTML = 'Testing PDF-lib...';
+                
+                // Test basic PDF creation
+                const pdfDoc = await PDFLib.PDFDocument.create();
+                const page = pdfDoc.addPage([600, 800]);
+                
+                page.drawText('Test page', {
+                    x: 50,
+                    y: 700,
+                    size: 30
+                });
+                
+                // Test copying pages
+                const newDoc = await PDFLib.PDFDocument.create();
+                const [copiedPage] = await newDoc.copyPages(pdfDoc, [0]);
+                newDoc.addPage(copiedPage);
+                
+                const pdfBytes = await newDoc.save();
+                
+                resultDiv.innerHTML = `✅ Success! Generated PDF with ${pdfBytes.length} bytes`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                console.error('PDF-lib test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
