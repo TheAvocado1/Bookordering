@@ -330,16 +330,48 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: one vertical line with double holes (holes per pair × 2 pairs)
+                // For 4-pages-per-sheet: holes positioned relative to each page pair's edges
                 const centerX = width / 2; // Center of the entire sheet
-                const totalHoles = numHoles * 2; // Double the holes (setting × 2 pairs)
+                const pageHeight = height / 2; // Height of each page in the grid
                 
-                const marginFromTopBottom = height * 0.1;
-                const availableHeight = height - (2 * marginFromTopBottom);
-                const spacing = totalHoles > 1 ? availableHeight / (totalHoles - 1) : 0;
+                // Calculate hole positions within each page pair
+                const marginFromEdge = pageHeight * 0.1; // Margin from top/bottom of each page
+                const availablePageHeight = pageHeight - (2 * marginFromEdge);
+                const spacing = numHoles > 1 ? availablePageHeight / (numHoles - 1) : 0;
 
-                for (let hole = 0; hole < totalHoles; hole++) {
-                    const y = marginFromTopBottom + (hole * spacing);
+                // Top pair holes (pages 1&16, 2&15, etc.)
+                for (let hole = 0; hole < numHoles; hole++) {
+                    const y = pageHeight + marginFromEdge + (hole * spacing); // Start from bottom of top section
+                    
+                    // Draw sewing mark
+                    copiedPage.drawCircle({
+                        x: centerX,
+                        y: y,
+                        size: 3,
+                        borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
+                        borderWidth: 1.5
+                    });
+                    
+                    // Draw guide lines
+                    copiedPage.drawLine({
+                        start: { x: centerX - 8, y: y },
+                        end: { x: centerX + 8, y: y },
+                        thickness: 0.8,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
+                    });
+                    
+                    // Add vertical mark for fold positioning
+                    copiedPage.drawLine({
+                        start: { x: centerX, y: y - 6 },
+                        end: { x: centerX, y: y + 6 },
+                        thickness: 1,
+                        color: PDFLib.rgb(0.6, 0.6, 0.6)
+                    });
+                }
+
+                // Bottom pair holes (pages 3&14, 4&13, etc.) - mirrored positioning
+                for (let hole = 0; hole < numHoles; hole++) {
+                    const y = marginFromEdge + (hole * spacing); // Start from bottom edge
                     
                     // Draw sewing mark
                     copiedPage.drawCircle({
