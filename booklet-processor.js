@@ -330,40 +330,38 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: holes positioned so they align when folded and sewn
-                const centerX = width / 2; // Center of the entire sheet (fold line)
-                const pageHeight = height / 2; // Height of each page in the grid
-                const foldLine = height / 2; // Y position of horizontal fold
-                
-                // Calculate hole positions relative to the fold line
-                // This ensures holes align when pages are folded together
-                const marginFromEdge = pageHeight * 0.1; // Margin from edge of each page
-                const availablePageHeight = pageHeight - (2 * marginFromEdge);
-                const spacing = numHoles > 1 ? availablePageHeight / (numHoles - 1) : 0;
+                // For 4-pages-per-sheet: Each leaflet (top/bottom) gets its own margins
+                // When cut horizontally, both leaflets have equal margins and hole positions
+                const centerX = width / 2; // Vertical center line (for hole placement)
+                const pageHeight = height / 2; // Height of each leaflet after cutting
+                const cutLine = height / 2; // Y position where sheet is cut horizontally
+
+                // Margins for each leaflet
+                const topMargin = 50;    // Distance from top edge of leaflet to first hole
+                const bottomMargin = 70; // Distance from bottom edge of leaflet to last hole (extra space for page numbers)
+
+                // Calculate hole spacing within each leaflet
+                const availableSpace = pageHeight - topMargin - bottomMargin;
+                const spacing = numHoles > 1 ? availableSpace / (numHoles - 1) : 0;
 
                 const allHoles = [];
-                
-                // Calculate hole positions relative to fold line
-                const holePositionsFromFold = [];
+
+                // Top leaflet (spans from cutLine to height)
+                // Holes positioned from top edge downward
                 for (let hole = 0; hole < numHoles; hole++) {
-                    const distanceFromEdge = marginFromEdge + (hole * spacing);
-                    holePositionsFromFold.push(distanceFromEdge);
+                    const distanceFromTop = topMargin + (hole * spacing);
+                    const yPos = height - distanceFromTop; // PDF coords: bottom-left origin
+                    allHoles.push(yPos);
                 }
-                
-                // Add holes for top pair - positioned above fold line
-                // Bottom hole of top pair should be closest to fold for sewing alignment
+
+                // Bottom leaflet (spans from 0 to cutLine)
+                // Holes positioned from top edge (cutLine) downward
                 for (let hole = 0; hole < numHoles; hole++) {
-                    const distanceFromFold = holePositionsFromFold[numHoles - 1 - hole];
-                    allHoles.push(foldLine + distanceFromFold);
+                    const distanceFromTop = topMargin + (hole * spacing);
+                    const yPos = cutLine - distanceFromTop; // PDF coords: bottom-left origin
+                    allHoles.push(yPos);
                 }
-                
-                // Add holes for bottom pair - positioned below fold line  
-                // Top hole of bottom pair should be closest to fold for sewing alignment
-                for (let hole = 0; hole < numHoles; hole++) {
-                    const distanceFromFold = holePositionsFromFold[hole];
-                    allHoles.push(foldLine - distanceFromFold);
-                }
-                
+
                 // Sort all holes by y position to create one continuous line
                 allHoles.sort((a, b) => b - a); // Sort from top to bottom
                 
