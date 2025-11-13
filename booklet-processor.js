@@ -458,18 +458,20 @@ class DocumentProcessor {
                     this.drawDashedLine(copiedPage, midWidth, verticalMargin, midWidth, height - verticalMargin);
                 }
                 
-                // Add perimeter cutting lines around all four sides
-                // Top edge - at distance verticalMargin from the edge
-                this.drawDashedLine(copiedPage, horizontalMargin, height - verticalMargin, width - horizontalMargin, height - verticalMargin);
-                
-                // Bottom edge
-                this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, width - horizontalMargin, verticalMargin);
-                
-                // Left edge  
-                this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, horizontalMargin, height - verticalMargin);
-                
-                // Right edge
-                this.drawDashedLine(copiedPage, width - horizontalMargin, verticalMargin, width - horizontalMargin, height - verticalMargin);
+                // Add perimeter cutting lines around all four sides (only when cutting lines are enabled)
+                if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
+                    // Top edge - at distance verticalMargin from the edge
+                    this.drawDashedLine(copiedPage, horizontalMargin, height - verticalMargin, width - horizontalMargin, height - verticalMargin);
+                    
+                    // Bottom edge
+                    this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, width - horizontalMargin, verticalMargin);
+                    
+                    // Left edge  
+                    this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, horizontalMargin, height - verticalMargin);
+                    
+                    // Right edge
+                    this.drawDashedLine(copiedPage, width - horizontalMargin, verticalMargin, width - horizontalMargin, height - verticalMargin);
+                }
                 
             } else {
                 // Original single-page logic for 2-pages-per-sheet
