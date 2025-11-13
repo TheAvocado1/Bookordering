@@ -492,9 +492,9 @@ class DocumentProcessor {
 
                 // Calculate cutting line positions:
 
-                // 1. Bottom perimeter cutting line: 25pt above bottom page numbers
+                // 1. Bottom perimeter cutting line: 25pt BELOW bottom page numbers (toward sheet edge)
                 const bottomPageNumbers = pageNumberMargin;  // at y=30
-                const bottomCutY = bottomPageNumbers + marginFromPageNumbers;  // at y=55
+                const bottomCutY = bottomPageNumbers - marginFromPageNumbers;  // at y=5 (between page numbers and sheet edge)
 
                 // 2. Middle horizontal cutting line: 25pt below top page numbers
                 const topPageNumbers = pageHeight + pageNumberMargin;  // at y=pageHeight+30
