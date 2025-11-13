@@ -438,17 +438,39 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: add horizontal cutting line across middle
+                // Calculate page dimensions for 2x2 grid
+                const pageWidth = width / 2;
+                const pageHeight = height / 2;
+                
+                // Calculate margin as the gap between pages divided by 2
+                // This ensures cutting lines are halfway between page edges
+                const horizontalMargin = pageWidth * 0.05; // 5% of page width for left/right margins
+                const verticalMargin = pageHeight * 0.05;   // 5% of page height for top/bottom margins
+                
+                // For 4-pages-per-sheet: add center cutting lines as before
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
                     const midHeight = height / 2;
-                    this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
+                    this.drawDashedLine(copiedPage, horizontalMargin, midHeight, width - horizontalMargin, midHeight);
                 }
                 
-                // Optional vertical line for 'both' option  
                 if (cuttingLines === 'both') {
                     const midWidth = width / 2;
-                    this.drawDashedLine(copiedPage, midWidth, 20, midWidth, height - 20);
+                    this.drawDashedLine(copiedPage, midWidth, verticalMargin, midWidth, height - verticalMargin);
                 }
+                
+                // Add perimeter cutting lines around all four sides
+                // Top edge - at distance verticalMargin from the edge
+                this.drawDashedLine(copiedPage, horizontalMargin, height - verticalMargin, width - horizontalMargin, height - verticalMargin);
+                
+                // Bottom edge
+                this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, width - horizontalMargin, verticalMargin);
+                
+                // Left edge  
+                this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, horizontalMargin, height - verticalMargin);
+                
+                // Right edge
+                this.drawDashedLine(copiedPage, width - horizontalMargin, verticalMargin, width - horizontalMargin, height - verticalMargin);
+                
             } else {
                 // Original single-page logic for 2-pages-per-sheet
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
