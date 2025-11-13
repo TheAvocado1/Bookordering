@@ -123,6 +123,20 @@ header::after {
     letter-spacing: 20px;
 }
 
+.version-info {
+    position: absolute;
+    top: 8px;
+    right: 15px;
+    font-size: 11px;
+    color: #888;
+    font-family: 'Courier Prime', monospace;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid #555;
+    border-radius: 3px;
+    letter-spacing: 1px;
+}
+
 header h1 {
     font-family: 'Special Elite', 'Courier Prime', cursive;
     font-size: 2.8em;
