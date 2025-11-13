@@ -481,25 +481,33 @@ class DocumentProcessor {
                 const pageWidth = width / 2;
                 const pageHeight = height / 2;
 
+                // Page numbers are added at 30 points from the bottom of each original page
+                const pageNumberMargin = 30;
+
                 // Detect text margins from a sample page
                 // Note: In 4-pages-per-sheet, each quarter represents one original page
-                // We need to estimate the text margins on these original pages
                 const textMargins = await this.detectTextMargins({ getSize: () => ({ width: pageWidth, height: pageHeight }) });
 
-                // Calculate the gap between text blocks in the middle
-                // For the horizontal middle: gap = bottom margin of top pages + top margin of bottom pages
-                // The distance from text to the middle cutting line = gap / 2 = (top + bottom) / 2
-                const textToCutDistance = (textMargins.top + textMargins.bottom) / 2;
+                // In the composite sheet coordinate system:
+                // - Top pages: text block bottom edge (page numbers) is at pageHeight + pageNumberMargin
+                // - Bottom pages: text block top edge (text start) is at pageHeight - textMargins.top
 
-                // The cutting lines should be at this same distance from the sheet edges
-                // This creates consistent spacing from text blocks to all cutting lines
-                const marginFromEdge = textToCutDistance;
+                // The middle horizontal cutting line should be halfway between these two points
+                const topTextBottom = pageHeight + pageNumberMargin;
+                const bottomTextTop = pageHeight - textMargins.top;
+                const horizontalCutY = (topTextBottom + bottomTextTop) / 2;
+
+                // Calculate the distance from text to cutting line (same on both sides)
+                // This distance will be applied uniformly to all cutting lines
+                const marginFromTextToCut = topTextBottom - horizontalCutY;
+
+                // For perimeter lines, use this same distance from the sheet edges
+                const marginFromEdge = marginFromTextToCut;
 
                 // For 4-pages-per-sheet: add center cutting lines
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
-                    const midHeight = height / 2;
-                    // Horizontal cutting line from left margin to right margin
-                    this.drawDashedLine(copiedPage, marginFromEdge, midHeight, width - marginFromEdge, midHeight);
+                    // Horizontal cutting line positioned based on text blocks, not geometric center
+                    this.drawDashedLine(copiedPage, marginFromEdge, horizontalCutY, width - marginFromEdge, horizontalCutY);
                 }
 
                 if (cuttingLines === 'both') {
@@ -510,7 +518,7 @@ class DocumentProcessor {
 
                 // Add perimeter cutting lines around all four sides (only when cutting lines are enabled)
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
-                    // Top edge - at consistent distance from edge (same as margin from text to middle cut)
+                    // Top edge - at consistent distance from edge
                     this.drawDashedLine(copiedPage, marginFromEdge, height - marginFromEdge, width - marginFromEdge, height - marginFromEdge);
 
                     // Bottom edge
