@@ -330,27 +330,38 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: one continuous vertical line with holes positioned 
-                // so they align when cut (same relative distance from edges)
-                const centerX = width / 2; // Center of the entire sheet
+                // For 4-pages-per-sheet: holes positioned so they align when folded and sewn
+                const centerX = width / 2; // Center of the entire sheet (fold line)
                 const pageHeight = height / 2; // Height of each page in the grid
+                const foldLine = height / 2; // Y position of horizontal fold
                 
-                // Calculate hole positions - each hole appears twice (once per page pair)
-                // but positioned so they align after cutting
+                // Calculate hole positions relative to the fold line
+                // This ensures holes align when pages are folded together
                 const marginFromEdge = pageHeight * 0.1; // Margin from edge of each page
                 const availablePageHeight = pageHeight - (2 * marginFromEdge);
                 const spacing = numHoles > 1 ? availablePageHeight / (numHoles - 1) : 0;
 
                 const allHoles = [];
                 
-                // Add holes for top pair (relative to top of their section)
+                // Calculate hole positions relative to fold line
+                const holePositionsFromFold = [];
                 for (let hole = 0; hole < numHoles; hole++) {
-                    allHoles.push(pageHeight + marginFromEdge + (hole * spacing));
+                    const distanceFromEdge = marginFromEdge + (hole * spacing);
+                    holePositionsFromFold.push(distanceFromEdge);
                 }
                 
-                // Add holes for bottom pair (relative to bottom of their section)  
+                // Add holes for top pair - positioned above fold line
+                // Bottom hole of top pair should be closest to fold for sewing alignment
                 for (let hole = 0; hole < numHoles; hole++) {
-                    allHoles.push(marginFromEdge + (hole * spacing));
+                    const distanceFromFold = holePositionsFromFold[numHoles - 1 - hole];
+                    allHoles.push(foldLine + distanceFromFold);
+                }
+                
+                // Add holes for bottom pair - positioned below fold line  
+                // Top hole of bottom pair should be closest to fold for sewing alignment
+                for (let hole = 0; hole < numHoles; hole++) {
+                    const distanceFromFold = holePositionsFromFold[hole];
+                    allHoles.push(foldLine - distanceFromFold);
                 }
                 
                 // Sort all holes by y position to create one continuous line
@@ -458,18 +469,20 @@ class DocumentProcessor {
                     this.drawDashedLine(copiedPage, midWidth, verticalMargin, midWidth, height - verticalMargin);
                 }
                 
-                // Add perimeter cutting lines around all four sides
-                // Top edge - at distance verticalMargin from the edge
-                this.drawDashedLine(copiedPage, horizontalMargin, height - verticalMargin, width - horizontalMargin, height - verticalMargin);
-                
-                // Bottom edge
-                this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, width - horizontalMargin, verticalMargin);
-                
-                // Left edge  
-                this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, horizontalMargin, height - verticalMargin);
-                
-                // Right edge
-                this.drawDashedLine(copiedPage, width - horizontalMargin, verticalMargin, width - horizontalMargin, height - verticalMargin);
+                // Add perimeter cutting lines around all four sides (only when cutting lines are enabled)
+                if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
+                    // Top edge - at distance verticalMargin from the edge
+                    this.drawDashedLine(copiedPage, horizontalMargin, height - verticalMargin, width - horizontalMargin, height - verticalMargin);
+                    
+                    // Bottom edge
+                    this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, width - horizontalMargin, verticalMargin);
+                    
+                    // Left edge  
+                    this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, horizontalMargin, height - verticalMargin);
+                    
+                    // Right edge
+                    this.drawDashedLine(copiedPage, width - horizontalMargin, verticalMargin, width - horizontalMargin, height - verticalMargin);
+                }
                 
             } else {
                 // Original single-page logic for 2-pages-per-sheet
