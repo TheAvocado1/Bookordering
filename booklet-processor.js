@@ -330,41 +330,61 @@ class DocumentProcessor {
             const isMultiPageSheet = pagesPerSheet === 4;
             
             if (isMultiPageSheet) {
-                // For 4-pages-per-sheet: Each leaflet (top/bottom) gets its own margins
-                // When cut horizontally, both leaflets have equal margins and hole positions
+                // For 4-pages-per-sheet: Calculate actual cutting line positions
                 const centerX = width / 2; // Vertical center line (for hole placement)
-                const pageHeight = height / 2; // Height of each leaflet after cutting
-                const cutLine = height / 2; // Y position where sheet is cut horizontally
+                const pageWidth = width / 2;
+                const pageHeight = height / 2;
 
-                // Margins for each leaflet
-                const topMargin = 50;    // Distance from top edge of leaflet to first hole
-                const bottomMargin = 70; // Distance from bottom edge of leaflet to last hole (extra space for page numbers)
+                // Page numbers and margins (same calculation as in addCuttingLines)
+                const pageNumberMargin = 30;
+                const marginFromPageNumbers = 20;
 
-                // Calculate hole spacing within each leaflet
-                const availableSpace = pageHeight - topMargin - bottomMargin;
-                const spacing = numHoles > 1 ? availableSpace / (numHoles - 1) : 0;
+                // Calculate cutting line positions to match addCuttingLines
+                const bottomPageNumbers = pageNumberMargin;
+                const bottomCutY = bottomPageNumbers - marginFromPageNumbers;  // y=10
+
+                const topPageNumbers = pageHeight + pageNumberMargin;
+                const horizontalCutY = topPageNumbers - marginFromPageNumbers;  // Middle cut
+
+                // Detect text margins
+                const textMargins = await this.detectTextMargins({ getSize: () => ({ width: pageWidth, height: pageHeight }) });
+                const bottomTextTop = pageHeight - textMargins.top;
+                const distanceFromBottomTextToMiddleCut = horizontalCutY - bottomTextTop;
+                const topTextTop = height - textMargins.top;
+                const topCutY = Math.min(topTextTop + distanceFromBottomTextToMiddleCut, height - 10);
+
+                // Margin from cutting lines for sewing holes
+                const sewingMargin = 25;  // 25pt margin from cutting lines
+
+                // Top pages: span from topCutY down to horizontalCutY
+                const topPagesTop = topCutY - sewingMargin;
+                const topPagesBottom = horizontalCutY + sewingMargin;
+                const topAvailableSpace = topPagesTop - topPagesBottom;
+                const topSpacing = numHoles > 1 ? topAvailableSpace / (numHoles - 1) : 0;
+
+                // Bottom pages: span from horizontalCutY down to bottomCutY
+                const bottomPagesTop = horizontalCutY - sewingMargin;
+                const bottomPagesBottom = bottomCutY + sewingMargin;
+                const bottomAvailableSpace = bottomPagesTop - bottomPagesBottom;
+                const bottomSpacing = numHoles > 1 ? bottomAvailableSpace / (numHoles - 1) : 0;
 
                 const allHoles = [];
 
-                // Top leaflet (spans from cutLine to height)
-                // Holes positioned from top edge downward
+                // Top pages holes (working down from topPagesTop)
                 for (let hole = 0; hole < numHoles; hole++) {
-                    const distanceFromTop = topMargin + (hole * spacing);
-                    const yPos = height - distanceFromTop; // PDF coords: bottom-left origin
+                    const yPos = topPagesTop - (hole * topSpacing);
                     allHoles.push(yPos);
                 }
 
-                // Bottom leaflet (spans from 0 to cutLine)
-                // Holes positioned from top edge (cutLine) downward
+                // Bottom pages holes (working down from bottomPagesTop)
                 for (let hole = 0; hole < numHoles; hole++) {
-                    const distanceFromTop = topMargin + (hole * spacing);
-                    const yPos = cutLine - distanceFromTop; // PDF coords: bottom-left origin
+                    const yPos = bottomPagesTop - (hole * bottomSpacing);
                     allHoles.push(yPos);
                 }
 
                 // Sort all holes by y position to create one continuous line
                 allHoles.sort((a, b) => b - a); // Sort from top to bottom
-                
+
                 // Draw all holes
                 allHoles.forEach(y => {
                     // Draw sewing mark
@@ -375,7 +395,7 @@ class DocumentProcessor {
                         borderColor: PDFLib.rgb(0.6, 0.6, 0.6),
                         borderWidth: 1.5
                     });
-                    
+
                     // Draw guide lines
                     copiedPage.drawLine({
                         start: { x: centerX - 8, y: y },
@@ -383,7 +403,7 @@ class DocumentProcessor {
                         thickness: 0.8,
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
-                    
+
                     // Add vertical mark for fold positioning
                     copiedPage.drawLine({
                         start: { x: centerX, y: y - 6 },
@@ -392,7 +412,7 @@ class DocumentProcessor {
                         color: PDFLib.rgb(0.6, 0.6, 0.6)
                     });
                 });
-                
+
             } else {
                 // Original logic for 2-pages-per-sheet: marks on left edge
                 const pageInSignature = i % 16; 
@@ -485,7 +505,7 @@ class DocumentProcessor {
                 const pageNumberMargin = 30;
 
                 // Fixed margin from page numbers to cutting lines
-                const marginFromPageNumbers = 25;  // 25pt margin from page numbers
+                const marginFromPageNumbers = 20;  // 20pt margin from page numbers
 
                 // Detect text margins from a sample page
                 const textMargins = await this.detectTextMargins({ getSize: () => ({ width: pageWidth, height: pageHeight }) });
