@@ -431,6 +431,36 @@ class DocumentProcessor {
         return newDoc;
     }
 
+    async detectTextMargins(page) {
+        // Estimate text block margins based on typical PDF layouts
+        // Most PDFs have text starting around 0.5-1 inch (36-72 points) from edges
+        const { width, height } = page.getSize();
+
+        // Use heuristic based on common document layouts
+        // Standard margins are typically 0.75-1 inch (54-72 points)
+        // We'll use a proportion of the page size to handle different paper sizes
+
+        // For standard letter/A4 pages (~ 600x800 points), use ~60 points
+        // Scale proportionally for other sizes
+        const baseMarginRatio = 0.08; // 8% of page dimension
+        const minMargin = 40; // Minimum margin in points
+        const maxMargin = 80; // Maximum margin in points
+
+        // Calculate margin based on the smaller dimension (usually width)
+        const calculatedMargin = Math.min(width, height) * baseMarginRatio;
+        const topBottomMargin = Math.max(minMargin, Math.min(maxMargin, calculatedMargin));
+
+        // Bottom margin is typically larger to accommodate page numbers and footers
+        const bottomMarginExtra = 15;
+
+        return {
+            top: topBottomMargin,
+            bottom: topBottomMargin + bottomMarginExtra,
+            left: topBottomMargin,
+            right: topBottomMargin
+        };
+    }
+
     async addCuttingLines(pdfDoc, cuttingLines, pagesPerSheet = 2) {
         if (cuttingLines === 'none') {
             return pdfDoc;
@@ -442,52 +472,63 @@ class DocumentProcessor {
         for (let i = 0; i < pages.length; i++) {
             const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
             const { width, height } = copiedPage.getSize();
-            
+
             // Check if this is a 4-pages-per-sheet layout
             const isMultiPageSheet = pagesPerSheet === 4;
-            
+
             if (isMultiPageSheet) {
                 // Calculate page dimensions for 2x2 grid
                 const pageWidth = width / 2;
                 const pageHeight = height / 2;
-                
-                // Calculate margin as the gap between pages divided by 2
-                // This ensures cutting lines are halfway between page edges
-                const horizontalMargin = pageWidth * 0.05; // 5% of page width for left/right margins
-                const verticalMargin = pageHeight * 0.05;   // 5% of page height for top/bottom margins
-                
-                // For 4-pages-per-sheet: add center cutting lines as before
+
+                // Detect text margins from a sample page
+                // Note: In 4-pages-per-sheet, each quarter represents one original page
+                // We need to estimate the text margins on these original pages
+                const textMargins = await this.detectTextMargins({ getSize: () => ({ width: pageWidth, height: pageHeight }) });
+
+                // Calculate the gap between text blocks in the middle
+                // For the horizontal middle: gap = bottom margin of top pages + top margin of bottom pages
+                // The distance from text to the middle cutting line = gap / 2 = (top + bottom) / 2
+                const textToCutDistance = (textMargins.top + textMargins.bottom) / 2;
+
+                // The cutting lines should be at this same distance from the sheet edges
+                // This creates consistent spacing from text blocks to all cutting lines
+                const marginFromEdge = textToCutDistance;
+
+                // For 4-pages-per-sheet: add center cutting lines
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
                     const midHeight = height / 2;
-                    this.drawDashedLine(copiedPage, horizontalMargin, midHeight, width - horizontalMargin, midHeight);
+                    // Horizontal cutting line from left margin to right margin
+                    this.drawDashedLine(copiedPage, marginFromEdge, midHeight, width - marginFromEdge, midHeight);
                 }
-                
+
                 if (cuttingLines === 'both') {
                     const midWidth = width / 2;
-                    this.drawDashedLine(copiedPage, midWidth, verticalMargin, midWidth, height - verticalMargin);
+                    // Vertical cutting line from bottom margin to top margin
+                    this.drawDashedLine(copiedPage, midWidth, marginFromEdge, midWidth, height - marginFromEdge);
                 }
-                
+
                 // Add perimeter cutting lines around all four sides (only when cutting lines are enabled)
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
-                    // Top edge - at distance verticalMargin from the edge
-                    this.drawDashedLine(copiedPage, horizontalMargin, height - verticalMargin, width - horizontalMargin, height - verticalMargin);
-                    
+                    // Top edge - at consistent distance from edge (same as margin from text to middle cut)
+                    this.drawDashedLine(copiedPage, marginFromEdge, height - marginFromEdge, width - marginFromEdge, height - marginFromEdge);
+
                     // Bottom edge
-                    this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, width - horizontalMargin, verticalMargin);
-                    
-                    // Left edge  
-                    this.drawDashedLine(copiedPage, horizontalMargin, verticalMargin, horizontalMargin, height - verticalMargin);
-                    
+                    this.drawDashedLine(copiedPage, marginFromEdge, marginFromEdge, width - marginFromEdge, marginFromEdge);
+
+                    // Left edge
+                    this.drawDashedLine(copiedPage, marginFromEdge, marginFromEdge, marginFromEdge, height - marginFromEdge);
+
                     // Right edge
-                    this.drawDashedLine(copiedPage, width - horizontalMargin, verticalMargin, width - horizontalMargin, height - verticalMargin);
+                    this.drawDashedLine(copiedPage, width - marginFromEdge, marginFromEdge, width - marginFromEdge, height - marginFromEdge);
                 }
-                
+
             } else {
                 // Original single-page logic for 2-pages-per-sheet
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
                     const midHeight = height / 2;
                     this.drawDashedLine(copiedPage, 20, midHeight, width - 20, midHeight);
-                    
+
                     copiedPage.drawText('-- CUT --', {
                         x: 5,
                         y: midHeight - 3,
@@ -496,7 +537,7 @@ class DocumentProcessor {
                     });
                 }
             }
-            
+
             newDoc.addPage(copiedPage);
         }
 
