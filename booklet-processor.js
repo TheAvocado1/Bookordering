@@ -356,29 +356,31 @@ class DocumentProcessor {
                 // Margin from cutting lines for sewing holes
                 const sewingMargin = 25;  // 25pt margin from cutting lines
 
-                // Top pages: span from topCutY down to horizontalCutY
+                // Top pages: boundaries are from topCutY down to horizontalCutY
                 const topPagesTop = topCutY - sewingMargin;
                 const topPagesBottom = horizontalCutY + sewingMargin;
                 const topAvailableSpace = topPagesTop - topPagesBottom;
-                const topSpacing = numHoles > 1 ? topAvailableSpace / (numHoles - 1) : 0;
 
-                // Bottom pages: span from horizontalCutY down to bottomCutY
+                // Bottom pages: boundaries are from horizontalCutY down to bottomCutY
                 const bottomPagesTop = horizontalCutY - sewingMargin;
                 const bottomPagesBottom = bottomCutY + sewingMargin;
                 const bottomAvailableSpace = bottomPagesTop - bottomPagesBottom;
-                const bottomSpacing = numHoles > 1 ? bottomAvailableSpace / (numHoles - 1) : 0;
+
+                // Calculate spacing: divide by (numHoles + 1) for equal spacing including margins
+                const topSpacing = topAvailableSpace / (numHoles + 1);
+                const bottomSpacing = bottomAvailableSpace / (numHoles + 1);
 
                 const allHoles = [];
 
-                // Top pages holes (working down from topPagesTop)
-                for (let hole = 0; hole < numHoles; hole++) {
-                    const yPos = topPagesTop - (hole * topSpacing);
+                // Top pages holes: start from bottom margin and work UP
+                for (let hole = 1; hole <= numHoles; hole++) {
+                    const yPos = topPagesBottom + (hole * topSpacing);
                     allHoles.push(yPos);
                 }
 
-                // Bottom pages holes (working down from bottomPagesTop)
-                for (let hole = 0; hole < numHoles; hole++) {
-                    const yPos = bottomPagesTop - (hole * bottomSpacing);
+                // Bottom pages holes: start from bottom margin and work UP
+                for (let hole = 1; hole <= numHoles; hole++) {
+                    const yPos = bottomPagesBottom + (hole * bottomSpacing);
                     allHoles.push(yPos);
                 }
 
