@@ -489,46 +489,59 @@ class DocumentProcessor {
                 const textMargins = await this.detectTextMargins({ getSize: () => ({ width: pageWidth, height: pageHeight }) });
 
                 // In the composite sheet coordinate system:
-                // - Top pages: text block bottom edge (page numbers) is at pageHeight + pageNumberMargin
-                // - Bottom pages: text block top edge (text start) is at pageHeight - textMargins.top
+                // - Top pages: text block spans from (height - textMargins.top) down to (pageHeight + pageNumberMargin)
+                // - Bottom pages: text block spans from (pageHeight - textMargins.top) down to (pageNumberMargin)
 
-                // The middle horizontal cutting line should be halfway between these two points
-                const topTextBottom = pageHeight + pageNumberMargin;
-                const bottomTextTop = pageHeight - textMargins.top;
-                const horizontalCutY = (topTextBottom + bottomTextTop) / 2;
+                // Calculate positions of all content edges
+                const topPageTextTop = height - textMargins.top;  // Top edge of top pages' text
+                const topPageTextBottom = pageHeight + pageNumberMargin;  // Bottom edge (page numbers)
+                const bottomPageTextTop = pageHeight - textMargins.top;  // Top edge of bottom pages' text
+                const bottomPageTextBottom = pageNumberMargin;  // Bottom edge (page numbers)
 
-                // Calculate the distance from text to cutting line (same on both sides)
-                // This distance will be applied uniformly to all cutting lines
-                const marginFromTextToCut = topTextBottom - horizontalCutY;
+                // Middle horizontal cutting line: halfway between adjacent content blocks
+                const horizontalCutY = (topPageTextBottom + bottomPageTextTop) / 2;
 
-                // For perimeter lines, use this same distance from the sheet edges
-                const marginFromEdge = marginFromTextToCut;
+                // Calculate uniform margin distance from content to nearest cutting line
+                const marginFromTextToCut = topPageTextBottom - horizontalCutY;
+
+                // For perimeter lines, calculate based on content positions:
+                // Bottom cutting line: should be marginFromTextToCut below bottom page numbers
+                // BUT constrained to stay on the page with a minimum edge clearance
+                const minEdgeClearance = 10;  // Minimum distance from sheet edge
+                const idealBottomCutY = bottomPageTextBottom - marginFromTextToCut;
+                const bottomCutY = Math.max(minEdgeClearance, idealBottomCutY);
+
+                // Top cutting line: should be marginFromTextToCut above top page text start
+                const topCutY = topPageTextTop + marginFromTextToCut;
+
+                // For sides, use the calculated margin
+                const sideCutMargin = marginFromTextToCut;
 
                 // For 4-pages-per-sheet: add center cutting lines
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
                     // Horizontal cutting line positioned based on text blocks, not geometric center
-                    this.drawDashedLine(copiedPage, marginFromEdge, horizontalCutY, width - marginFromEdge, horizontalCutY);
+                    this.drawDashedLine(copiedPage, sideCutMargin, horizontalCutY, width - sideCutMargin, horizontalCutY);
                 }
 
                 if (cuttingLines === 'both') {
                     const midWidth = width / 2;
-                    // Vertical cutting line from bottom margin to top margin
-                    this.drawDashedLine(copiedPage, midWidth, marginFromEdge, midWidth, height - marginFromEdge);
+                    // Vertical cutting line from bottom to top cut lines
+                    this.drawDashedLine(copiedPage, midWidth, bottomCutY, midWidth, topCutY);
                 }
 
                 // Add perimeter cutting lines around all four sides (only when cutting lines are enabled)
                 if (cuttingLines === 'horizontal' || cuttingLines === 'both') {
-                    // Top edge - at consistent distance from edge
-                    this.drawDashedLine(copiedPage, marginFromEdge, height - marginFromEdge, width - marginFromEdge, height - marginFromEdge);
+                    // Top edge
+                    this.drawDashedLine(copiedPage, sideCutMargin, topCutY, width - sideCutMargin, topCutY);
 
-                    // Bottom edge
-                    this.drawDashedLine(copiedPage, marginFromEdge, marginFromEdge, width - marginFromEdge, marginFromEdge);
+                    // Bottom edge - uses constrained position to avoid cutting page numbers
+                    this.drawDashedLine(copiedPage, sideCutMargin, bottomCutY, width - sideCutMargin, bottomCutY);
 
                     // Left edge
-                    this.drawDashedLine(copiedPage, marginFromEdge, marginFromEdge, marginFromEdge, height - marginFromEdge);
+                    this.drawDashedLine(copiedPage, sideCutMargin, bottomCutY, sideCutMargin, topCutY);
 
                     // Right edge
-                    this.drawDashedLine(copiedPage, width - marginFromEdge, marginFromEdge, width - marginFromEdge, height - marginFromEdge);
+                    this.drawDashedLine(copiedPage, width - sideCutMargin, bottomCutY, width - sideCutMargin, topCutY);
                 }
 
             } else {
